@@ -1,0 +1,36 @@
+# Builder stage with Go 1.21
+FROM golang:1.21-alpine3.20 AS builder
+
+# Set environment variables
+ENV CGO_ENABLED=0 GOOS=linux GOARCH=amd64
+
+WORKDIR /app
+
+# Copy go.mod and go.sum for dependency resolution
+COPY go.mod go.sum ./
+
+# Download and tidy up dependencies
+RUN go mod download && go mod tidy
+
+# Copy the rest of the application code
+COPY . .
+
+# Build the application binary
+RUN go build -v -o server
+
+# Final lightweight image
+FROM alpine:3.20
+
+WORKDIR /app
+
+# Copy the built binary
+COPY --from=builder /app/server .
+
+# Optional: Copy config.env if it exists
+COPY --from=builder /app/env/config.env ./env/config.env
+
+# Expose a port (optional, depends on your app)
+EXPOSE 8080
+
+# Run the binary
+CMD ["/app/server"]
